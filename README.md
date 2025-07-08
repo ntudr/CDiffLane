@@ -47,4 +47,4 @@ python tools/train.py configs/CDiffLane/culane/CDiffLane_culane_dla34.py
 ### Validation
 ``` sh
 python tools/test.py configs/CDiffLane/culane/CDiffLane_culane_dla34.py pretrain/cd_lane.pth
-```# CDiffLane
+```

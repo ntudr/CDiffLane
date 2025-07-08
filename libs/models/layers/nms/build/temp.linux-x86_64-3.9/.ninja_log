@@ -1,0 +1,8 @@
+# ninja log v5
+0	13503	1732548898809329736	/home/kevin50310/CLRerNet/libs/models/layers/nms/build/temp.linux-x86_64-3.9/src/nms.o	32e2bb91d65fc9a3
+10	13472	1732549623641994524	/home/kevin50310/CLRerNet/libs/models/layers/nms/build/temp.linux-x86_64-3.9/src/nms.o	6eb448ad3f603e51
+9	34884	1732550275980418516	/home/kevin50310/CLRerNet/libs/models/layers/nms/build/temp.linux-x86_64-3.9/src/nms_kernel.o	49c1881ec9af830b
+9	13860	1732550445891837530	/home/kevin50310/CLRerNet/libs/models/layers/nms/build/temp.linux-x86_64-3.9/src/nms.o	32e2bb91d65fc9a3
+10	36516	1732550468546341630	/home/kevin50310/CLRerNet/libs/models/layers/nms/build/temp.linux-x86_64-3.9/src/nms_kernel.o	d75cd908d62ed14f
+9	13841	1732552138469930607	/home/kevin50310/CLRerNet/libs/models/layers/nms/build/temp.linux-x86_64-3.9/src/nms.o	db2b95e854c6ab21
+9	37119	1732552161748761050	/home/kevin50310/CLRerNet/libs/models/layers/nms/build/temp.linux-x86_64-3.9/src/nms_kernel.o	8fbb9b12bf9b0246
