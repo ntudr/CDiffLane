@@ -37,7 +37,7 @@ dataset/tusimple/test_label.json # test label json file
 ## Model preparation
 Create `pretrain` directory.
 
-We provide our pretrain model at [CDiffLane](https://drive.google.com/file/d/1aqFi3v2qL5G-gxS1VCyHkJU0zDGuq5Ad/view?usp=sharing), download and place in `pretrain` directory
+We provide our pretrain model at [CDiffLane](https://drive.google.com/drive/folders/155T4sdOf3PbzrS9q2F7ru7eC75l8uDPu?usp=drive_link), download and place in `pretrain` directory
 
 ## Getting Started
 ### Training
