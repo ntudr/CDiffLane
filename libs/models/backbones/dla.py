@@ -3,28 +3,33 @@ Adapted from:
 https://github.com/Turoad/CLRNet/blob/main/clrnet/models/backbones/dla34.py
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import math
 import logging
-from os.path import join
+import math
 
 import torch
-from torch import nn
-import torch.utils.model_zoo as model_zoo
-from mmdet.models.builder import BACKBONES
 import torch.nn.functional as F
-import torch_dct as dct
-from .resnet import ResNetWrapper
+from mmdet.models.builder import BACKBONES
+from torch import nn
 
 
 BN_MOMENTUM = 0.1
 logger = logging.getLogger(__name__)
 
-def get_model_url(data='imagenet', name='dla34', hash='ba72cf86'):
-    return join('http://dl.yf.io/dla/models', data, '{}-{}.pth'.format(name, hash))
+
+TIMM_DLA_MODEL_MAP = {
+    'dla34': 'timm/dla34.in1k',
+    'dla46_c': 'timm/dla46_c.in1k',
+    'dla46x_c': 'timm/dla46x_c.in1k',
+    'dla60': 'timm/dla60.in1k',
+    'dla60_res2net': 'timm/dla60_res2net.in1k',
+    'dla60_res2next': 'timm/dla60_res2next.in1k',
+    'dla60x': 'timm/dla60x.in1k',
+    'dla60x_c': 'timm/dla60x_c.in1k',
+    'dla102': 'timm/dla102.in1k',
+    'dla102x': 'timm/dla102x.in1k',
+    'dla102x2': 'timm/dla102x2.in1k',
+    'dla169': 'timm/dla169.in1k',
+}
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -390,14 +395,36 @@ class DLA(nn.Module):
         return y
 
     def load_pretrained_model(self, data='imagenet', name='dla34', hash='ba72cf86'):
-        # fc = self.fc
         if name.endswith('.pth'):
-            model_weights = torch.load(data + name)
+            model_weights = torch.load(name, map_location='cpu')
         else:
-            model_url = get_model_url(data, name, hash)
-            model_weights = model_zoo.load_url(model_url)
+            if data != 'imagenet':
+                raise ValueError(
+                    f"Unsupported pretrained dataset '{data}' for DLA backbone."
+                )
+            try:
+                import timm
+            except ImportError as exc:
+                raise ImportError(
+                    'Loading pretrained DLA weights now requires timm. '
+                    'Install it with `pip install timm`.'
+                ) from exc
+
+            hf_model_name = TIMM_DLA_MODEL_MAP.get(name)
+            if hf_model_name is None:
+                supported = ', '.join(sorted(TIMM_DLA_MODEL_MAP))
+                raise ValueError(
+                    f"Unsupported pretrained DLA variant '{name}'. "
+                    f'Supported variants: {supported}.'
+                )
+
+            logger.info(
+                "Loading pretrained DLA weights for %s from Hugging Face via timm.",
+                name,
+            )
+            timm_model = timm.create_model(f'hf-hub:{hf_model_name}', pretrained=True)
+            model_weights = timm_model.state_dict()
         self.load_state_dict(model_weights, strict=False)
-        # self.fc = fc
 
 
 def dla34(pretrained=True, levels=None, in_channels=None, **kwargs):  # DLA-34
@@ -406,21 +433,8 @@ def dla34(pretrained=True, levels=None, in_channels=None, **kwargs):  # DLA-34
         model.load_pretrained_model(data='imagenet', name='dla34', hash='ba72cf86')
     return model
 
-def low_pass_dct(image,t):
-    dct_image =  dct.dct_2d(image)
-    mask = torch.zeros_like(image, dtype=torch.float32)+1
-    index = torch.where(mask == 1)
-    thres = 1600-(t/9*800)
-    dis = 5*index[0]+2*index[1]
-    for i in range(t.size(0)):
-        clip_index = torch.where(dis>thres[i])
-        mask[i, :, index[0][clip_index], index[1][clip_index]] = 0
 
-    filtered_dct = dct_image * mask
-    filtered_image = dct.idct_2d(filtered_dct)
-    return filtered_image
-
-@BACKBONES.register_module
+@BACKBONES.register_module()
 class DLANet(nn.Module):
     def __init__(
         self,
@@ -438,28 +452,24 @@ class DLANet(nn.Module):
             pretrained=pretrained, levels=levels, in_channels=in_channels
         )
         theta1 = torch.tensor([[[1.0, 0.0, 0.0],
-                                [0.0, 1.0, 0.0]]], dtype=torch.float).repeat(10,1,1)
+                                [0.0, 1.0, 0.0]]], dtype=torch.float).repeat(10, 1, 1)
         for i in range(10):
-            theta1[i][0][0] += 0/9*i
-            theta1[i][1][1] += 0/9*i
-
+            theta1[i][0][0] += 0 / 9 * i
+            theta1[i][1][1] += 0 / 9 * i
 
         self.theta1 = nn.Parameter(theta1)
         register_buffer = lambda name, val: self.register_buffer(name, val.to(torch.float32))
-        register_buffer('coeffi', torch.tensor([[1.0, 0.0, 0.0],[0.0, 1.0, 0.0]]))
+        register_buffer('coeffi', torch.tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]))
 
     def forward(self, x, t):
-        theta1 = self.theta1[t]*self.coeffi
-        theta2 = self.coeffi/(self.theta1[t]+1e-8)*self.coeffi
- 
+        theta1 = self.theta1[t] * self.coeffi
+        theta2 = self.coeffi / (self.theta1[t] + 1e-8) * self.coeffi
+
         with torch.no_grad():
             grid = F.affine_grid(theta1, x.size(), align_corners=False)
             x = F.grid_sample(x, grid, align_corners=False, mode='bicubic')
             grid2 = F.affine_grid(theta2, x.size(), align_corners=False)
-            x = F.grid_sample(x, grid2, align_corners=False, mode="nearest")
-
-        # with torch.no_grad():
-        #     x = low_pass_dct(x, t)
+            x = F.grid_sample(x, grid2, align_corners=False, mode='nearest')
 
         x = self.model(x)
         return x

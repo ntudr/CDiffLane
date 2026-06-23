@@ -369,7 +369,7 @@ class CLRerHead(nn.Module):
 
         return predictions_list
 
-    def loss(self, out_dict, img_metas):
+    def loss(self, out_dict, img_metas, t):
         """Loss calculation from the network output.
 
         Args:
@@ -483,7 +483,7 @@ class CLRerHead(nn.Module):
         if self.loss_seg:
             out_dict["seg"] = self.forward_seg(x_t)
 
-        losses = self.loss(out_dict, img_metas)
+        losses = self.loss(out_dict, img_metas, t)
         return losses
 
     def forward_seg(self, x):
